@@ -4,7 +4,7 @@ import functools
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Dict, Optional, TypeVar, Union
 
 _Self = TypeVar("_Self")
 _T = TypeVar("_T")
@@ -59,10 +59,10 @@ class Query:
   def sort_column(self, sort_column: Column):
     self._sort_column = sort_column
 
-  def to_dict(self) -> Dict[str, Any]:
+  def to_dict(self) -> Dict[str, Union[str, int]]:
     query: Dict[QueryParams, Optional[Any]] = {
       QueryParams.TEXT: self._text,
-      QueryParams.SORT_COLUMN: self._sort_column,
+      QueryParams.SORT_COLUMN: self._sort_column.value if self._sort_column else None,
       QueryParams.PAGINATION_NUM: self._pagination_num,
       QueryParams.MAX_NUM_ROWS: self._max_num_rows,
     }
