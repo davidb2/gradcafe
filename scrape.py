@@ -15,7 +15,7 @@ from pydantic.env_settings import BaseSettings
 from custom_logger import logger
 from db import Post, session
 from parsing import get_rows, table_row_to_post
-from query import Column, Query
+from query import Query
 
 NUM_COLUMNS = 6
 
@@ -68,7 +68,7 @@ async def populate(config: Config, seed: str) -> str:
           session.add(post)
           new_posts.append(post)
 
-      logger.info(f"Inserting {len(new_posts)} new posts into table, {url=}")
+      logger.debug(f"Inserting {len(new_posts)} new posts into table, {url=}")
       session.commit()
 
       if not new_posts:
