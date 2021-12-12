@@ -1,5 +1,7 @@
+aiohttp[speedups]
 bs4
 lxml
 psycopg2-binary
 pydantic
+python-dotenv
 sqlalchemy >= 1.4.*

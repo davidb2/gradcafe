@@ -1,25 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse
-import sys
-import asyncio
 import math
-from typing import Any, Callable, ClassVar, Dict, List, Literal, Match, Optional, Protocol, Sequence, TypeVar, Union, cast
-from urllib import parse
-from urllib.request import urlopen
-from urllib.parse import urlencode
-from enum import Enum
-from dataclasses import dataclass
-from pathlib import Path
+from typing import Callable, List, Match, Optional, Sequence, TypeVar, cast
 import functools
 import re
-import datetime as dt
 
-from bs4 import BeautifulSoup
 from bs4.element import ResultSet, Tag
 
 from db import Post
-from query import Query
 
 from custom_logger import logger
 
@@ -62,7 +50,7 @@ def get_rows(table: Tag) -> ResultSet[Tag]:
   return table.find_all(is_post_row)
 
 def graceful(sf: Callable[[_InputType], _ReturnType]) -> Callable[[_InputType], Optional[_ReturnType]]:
-  f = cast(Callable[[_InputType], _ReturnType], sf.__func__)
+  f = cast(Callable[[_InputType], _ReturnType], sf.__func__) # type: ignore
   def wrapper(parser_input: _InputType) -> Optional[_ReturnType]:
     try:
       return f(parser_input)
@@ -122,9 +110,13 @@ class Parser:
   @graceful
   @staticmethod
   def parse_gpa(stats: List[List[str]]) -> Optional[float]:
-    if not stats[0][1].strip():
+    if not (text := stats[0][1].strip()):
       return None
-    return float(stats[0][1])
+    
+    if text == 'n/a':
+      return None
+
+    return float(text)
 
   @graceful
   @staticmethod
@@ -269,6 +261,7 @@ def table_row_to_post(tds: List[Tag]) -> Post:
     date_of_decision=date_of_decision,
     date_of_post=date_of_post,
     school=school,
+    status=status,
     program=program,
     comment=comment,
     gpa=gpa,

@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from pydantic.types import SecretStr
 
 import sqlalchemy as sa
 
+from pydantic import BaseSettings
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.decl_api import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker
@@ -9,10 +10,9 @@ from sqlalchemy.orm.session import Session
 
 
 
-engine = sa.create_engine("postgresql://postgres:password@localhost:5432/postgres", echo=False)
 Base: DeclarativeMeta = declarative_base()
 
-class Post(Base):
+class Post(Base): # type: ignore
   """
   school='Carnegie Mellon University (CMU)'
   program='Operation Management, PhD (F21)'
@@ -41,6 +41,26 @@ class Post(Base):
   gre_writing = sa.Column(sa.Numeric)
   gre_subject = sa.Column(sa.String)
 
-Base.metadata.create_all(engine)
+class DBSettings(BaseSettings):
+  class Config: # type: ignore
+    env_prefix = 'db_'
+    env_file = '.env'
+    env_file_encoding = 'utf-8'
+  
+  host: str
+  name: str
+  password: SecretStr
+  port: int
+  user: str
+
+  @property
+  def dsn(self) -> str:
+    return f"postgresql://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
+
+import os
+print(os.environ)
+db_settings = DBSettings()
+engine = sa.create_engine(db_settings.dsn, echo=False)
+Base.metadata.create_all(engine) # type: ignore
 Session_ = sessionmaker(bind=engine)
 session: Session = Session_()
