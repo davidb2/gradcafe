@@ -10,9 +10,17 @@ services:
       TS_TUNE_CPUS: 2
       TS_TUNE_MEMORY: '1GB'
 
+  gradcafe:
+    command: [ 'echo', '==> Image gradcafe:latest built locally.' ]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gradcafe:latest
+
   scrape:
-    command: [ 'bash', '-c', 'python parse.py']
-    image: gradcafe:lastest
+    command: [ 'bash', '-c', 'python scrape.py']
+    image: gradcafe:latest
     env_file: .env
     depends_on:
       - db
+      - gradcafe

@@ -1,0 +1,5 @@
+bs4
+lxml
+psycopg2-binary
+pydantic
+sqlalchemy >= 1.4.*

@@ -5,8 +5,11 @@ import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.decl_api import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.session import Session
 
 
+
+engine = sa.create_engine("postgresql://postgres:password@localhost:5432/postgres", echo=False)
 Base: DeclarativeMeta = declarative_base()
 
 class Post(Base):
@@ -32,6 +35,12 @@ class Post(Base):
   status = sa.Column(sa.String)
   date_of_post = sa.Column(sa.Date)
   comment = sa.Column(sa.String)
-  gpa = sa.Column(sa.String)
-  gre_general = sa.Column(sa.String)
+  gpa = sa.Column(sa.Numeric)
+  gre_verbal = sa.Column(sa.Numeric)
+  gre_quant = sa.Column(sa.Numeric)
+  gre_writing = sa.Column(sa.Numeric)
   gre_subject = sa.Column(sa.String)
+
+Base.metadata.create_all(engine)
+Session_ = sessionmaker(bind=engine)
+session: Session = Session_()

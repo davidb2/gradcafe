@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 import asyncio
+import math
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Match, Optional, Protocol, Sequence, TypeVar, Union, cast
 from urllib import parse
 from urllib.request import urlopen
@@ -120,18 +121,53 @@ class Parser:
 
   @graceful
   @staticmethod
-  def parse_gpa(stats: List[List[str]]) -> Optional[str]:
-    return stats[0][1].strip() or None
+  def parse_gpa(stats: List[List[str]]) -> Optional[float]:
+    if not stats[0][1].strip():
+      return None
+    return float(stats[0][1])
 
   @graceful
   @staticmethod
-  def parse_gre_general(stats: List[List[str]]) -> Optional[str]:
-    return stats[1][1].strip() or None
+  def parse_gre_general(stats: List[List[str]]) -> Optional[Match[str]]:
+    if not (text := stats[1][1].strip()):
+      return None
+
+    return re.match(r'(.*)/(.*)/(.*)', text)
+
+  @graceful
+  @staticmethod
+  def parse_gre_verbal(match: Match[str]) -> Optional[float]:
+    if math.isclose(verbal := float(match.group(1).strip()), 0):
+      return None
+    
+    return verbal
+
+  @graceful
+  @staticmethod
+  def parse_gre_quant(match: Match[str]) -> Optional[float]:
+    if math.isclose(quant := float(match.group(2).strip()), 0):
+      return None
+    
+    return quant
+
+  @graceful
+  @staticmethod
+  def parse_gre_writing(match: Match[str]) -> Optional[float]:
+    if math.isclose(writing := float(match.group(3).strip()), 0):
+      return None
+    
+    return writing
 
   @graceful
   @staticmethod
   def parse_gre_subject(stats: List[List[str]]) -> Optional[str]:
-    return stats[2][1].strip() or None
+    if not (text := stats[2][1].strip()):
+      return None
+    
+    if text == 'n/a':
+      return None
+
+    return text
 
   @graceful
   @staticmethod
@@ -180,8 +216,8 @@ def table_row_to_post(tds: List[Tag]) -> Post:
   school = Parser.parse_school(tds[0])
   program = Parser.parse_progam(tds[1])
 
-  logger.info(f"{school=}")
-  logger.info(f"{program=}")
+  logger.debug(f"{school=}")
+  logger.debug(f"{program=}")
 
   decision: Optional[str] = None
   medium: Optional[str] = None
@@ -191,33 +227,40 @@ def table_row_to_post(tds: List[Tag]) -> Post:
     medium = Parser.parse_medium(match)
     date_of_decision = Parser.parse_date_of_decision(match)
 
-    logger.info(f"{decision=}")
-    logger.info(f"{medium=}")
-    logger.info(f"{date_of_decision=}")
+    logger.debug(f"{decision=}")
+    logger.debug(f"{medium=}")
+    logger.debug(f"{date_of_decision=}")
 
-
-  gpa: Optional[str] = None
-  gre_general: Optional[str] = None
+  gpa: Optional[float] = None
   gre_subject: Optional[str] = None
+  gre_verbal: Optional[float] = None
+  gre_quant: Optional[float] = None
+  gre_writing: Optional[float] = None
   if stats := Parser.parse_stats(tds[2]):
     gpa = Parser.parse_gpa(stats)
-    gre_general = Parser.parse_gre_general(stats)
     gre_subject = Parser.parse_gre_subject(stats)
+    logger.debug(f"{gpa=}")
+    logger.debug(f"{gre_subject=}")
 
-    logger.info(f"{gpa=}")
-    logger.info(f"{gre_general=}")
-    logger.info(f"{gre_subject=}")
+    if gre_general := Parser.parse_gre_general(stats):
+      gre_verbal = Parser.parse_gre_verbal(gre_general)
+      gre_quant = Parser.parse_gre_quant(gre_general)
+      gre_writing = Parser.parse_gre_writing(gre_general)
+
+      logger.debug(f"{gre_verbal=}")
+      logger.debug(f"{gre_quant=}")
+      logger.debug(f"{gre_writing=}")
 
   status = Parser.parse_status(tds[3])
   date_of_post = Parser.parse_date_of_post(tds[4])
   comment = Parser.parse_comment(tds[5])
 
-  logger.info(f"{status=}")
-  logger.info(f"{date_of_post=}")
-  logger.info(f"{comment=}")
+  logger.debug(f"{status=}")
+  logger.debug(f"{date_of_post=}")
+  logger.debug(f"{comment=}")
 
   post_id = Parser.parse_id(tds[5])
-  logger.info(f"{post_id=}")
+  logger.debug(f"{post_id=}")
 
   return Post(
     id=post_id,
@@ -229,6 +272,8 @@ def table_row_to_post(tds: List[Tag]) -> Post:
     program=program,
     comment=comment,
     gpa=gpa,
-    gre_general=gre_general,
+    gre_verbal=gre_verbal,
+    gre_quant=gre_quant,
+    gre_writing=gre_writing,
     gre_subject=gre_subject,
   )
