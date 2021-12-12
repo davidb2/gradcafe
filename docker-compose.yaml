@@ -1,0 +1,18 @@
+version: '3.7'
+services:
+  db:
+    image: timescale/timescaledb:latest-pg12
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      TS_TUNE_CPUS: 2
+      TS_TUNE_MEMORY: '1GB'
+
+  scrape:
+    command: [ 'bash', '-c', 'python parse.py']
+    image: gradcafe:lastest
+    env_file: .env
+    depends_on:
+      - db
