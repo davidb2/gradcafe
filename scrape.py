@@ -10,14 +10,17 @@ from urllib.parse import urlencode
 import aiohttp
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from pydantic.env_settings import BaseSettings
 
 from custom_logger import logger
 from db import Post, session
 from parsing import get_rows, table_row_to_post
 from query import Query
 
-API = 'https://thegradcafe.com/survey/index.php'
 NUM_COLUMNS = 6
+
+class Config(BaseSettings):
+  api_url: str
 
 def soup_to_posts(soup: BeautifulSoup) -> Optional[List[Post]]:
   table = soup.find(class_="submission-table")
@@ -44,13 +47,14 @@ def soup_to_posts(soup: BeautifulSoup) -> Optional[List[Post]]:
 
 async def main(args: Namespace) -> None:
   seed: str = args.seed
+  config = Config()
   query = Query().text(seed).max_num_rows(250)
 
   async with aiohttp.ClientSession() as http_session:
     pagination_num = 0
     for pagination_num in itertools.count(start=1):
       data = urlencode(query.pagination_num(pagination_num).to_dict())
-      url = f"{API}?{data}"
+      url = f"{config.api_url}?{data}"
       async with http_session.get(url) as http_response:
         html = await http_response.text()
 

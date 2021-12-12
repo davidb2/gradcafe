@@ -74,10 +74,14 @@ class Parser:
   @graceful
   @staticmethod
   def parse_decision_medium_and_date(td: Tag) -> Optional[Match[str]]:
-    if (possible_decision_medium_and_date := td.find(text=True, recursive=False)) is None:
-      return None
+    tokens: List[str] = []
+    if (possible_decision := td.find("strong", recursive=False)):
+      tokens.append(possible_decision.text)
 
-    decision_medium_and_date = cast(str, possible_decision_medium_and_date).strip()
+    if (possible_decision_medium_and_date := td.find(text=True, recursive=False)):
+      tokens.append(possible_decision_medium_and_date.text)
+
+    decision_medium_and_date = (' '.join(tokens)).strip()
     return re.match(r'(.*)\s*via\s*(.*)\s*on\s*(.*)', decision_medium_and_date)
     
   @graceful

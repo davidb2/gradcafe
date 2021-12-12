@@ -57,8 +57,6 @@ class DBSettings(BaseSettings):
   def dsn(self) -> str:
     return f"postgresql://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
 
-import os
-print(os.environ)
 db_settings = DBSettings()
 engine = sa.create_engine(db_settings.dsn, echo=False)
 Base.metadata.create_all(engine) # type: ignore
