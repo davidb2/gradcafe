@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# Run the database only.
+# docker-compose up --detach db
+
+# Run scrape (attached).
+docker-compose up --build scrape && docker-compose rm -fsv scrape

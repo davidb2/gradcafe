@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import itertools
-from argparse import ArgumentParser, Namespace
-from typing import List, Optional
+from argparse import Action, ArgumentParser, Namespace
+from typing import Any, List, Optional, Sequence, Union
 from urllib.parse import urlencode
 
 import aiohttp
@@ -15,7 +15,7 @@ from pydantic.env_settings import BaseSettings
 from custom_logger import logger
 from db import Post, session
 from parsing import get_rows, table_row_to_post
-from query import Query
+from query import Column, Query
 
 NUM_COLUMNS = 6
 
@@ -45,9 +45,8 @@ def soup_to_posts(soup: BeautifulSoup) -> Optional[List[Post]]:
 
   return posts
 
-async def main(args: Namespace) -> None:
-  seed: str = args.seed
-  config = Config()
+
+async def populate(config: Config, seed: str) -> str:
   query = Query().text(seed).max_num_rows(250)
 
   async with aiohttp.ClientSession() as http_session:
@@ -75,12 +74,48 @@ async def main(args: Namespace) -> None:
       if not new_posts:
         break
 
+  return seed
+
+
+async def main(args: Namespace) -> None:
+  seeds: List[str] = args.seeds
+  config = Config()
+
+  results = [populate(config, seed) for seed in seeds]
+  for result in asyncio.as_completed(results):
+    seed = await result
+    logger.info(f"finished scraping {seed=}")
+
+
+class SplitArgs(Action):
+  def __call__(
+    self,
+    parser: ArgumentParser,
+    namespace: Namespace,
+    values: Optional[Union[str, Sequence[Any]]],
+    option_string: Optional[str] = None,
+  ):
+    logger.info(f"{namespace=}, {values=}, {option_string=}")
+    assert isinstance(values, list)
+    assert len(values) == 1
+    items: str = values[0]
+    setattr(namespace, self.dest, [item.strip() for item in items.split(",")])
 
 def get_args() -> Namespace:
   parser = ArgumentParser("scrape gradcafe")
-  _ = parser.add_argument("--seed", required=True, type=str, help="the string to search by")
+  _ = parser.add_argument(
+    "--seeds",
+    dest="seeds",
+    required=True,
+    type=str,
+    action=SplitArgs,
+    nargs="+",
+    default=[],
+    help="the string to search by",
+  )
 
   args = parser.parse_args()
+  logger.info(f"{args=}")
   return args
 
 if __name__ == '__main__':
