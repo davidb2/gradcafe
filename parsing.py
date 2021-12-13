@@ -6,6 +6,7 @@ from typing import Callable, List, Match, Optional, Sequence, TypeVar, cast
 import functools
 import re
 from bs4 import BeautifulSoup
+import datetime as dt
 
 from bs4.element import ResultSet, Tag
 
@@ -61,7 +62,7 @@ def graceful(sf: Callable[[_InputType], _ReturnType]) -> Callable[[_InputType], 
     try:
       return f(parser_input)
     except Exception as e:
-      logger.error(f"Failed to parse {f}: {e}")
+      logger.error(f"Failed to parse {f.__name__}: {e}")
       return None
   return functools.wraps(f)(wrapper)
 
@@ -102,8 +103,10 @@ class Parser:
 
   @graceful
   @staticmethod
-  def parse_date_of_decision(match: Match[str]) -> Optional[str]:
-    return match.group(3).strip() or None
+  def parse_date_of_decision(match: Match[str]) -> Optional[dt.date]:
+    if not (date_str := match.group(3).strip()):
+      return None
+    return dt.datetime.strptime(date_str, "%d %b %Y").date()
 
   @graceful
   @staticmethod
@@ -178,8 +181,10 @@ class Parser:
 
   @graceful
   @staticmethod
-  def parse_date_of_post(td: Tag) -> Optional[str]:
-    return td.text.strip() or None
+  def parse_date_of_post(td: Tag) -> Optional[dt.date]:
+    if not (date_str := td.text.strip()):
+      return None
+    return dt.datetime.strptime(date_str, "%d %b %Y").date()
 
   @graceful
   @staticmethod
@@ -248,7 +253,7 @@ def table_row_to_post(tds: List[Tag]) -> Post:
 
   decision: Optional[str] = None
   medium: Optional[str] = None
-  date_of_decision: Optional[str] = None
+  date_of_decision: Optional[dt.date] = None
   if match := Parser.parse_decision_medium_and_date(tds[2]):
     decision = Parser.parse_decision(match)
     medium = Parser.parse_medium(match)

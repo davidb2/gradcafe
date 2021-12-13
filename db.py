@@ -1,13 +1,17 @@
+import asyncio
+from typing import Optional
 from pydantic.types import SecretStr
 
 import sqlalchemy as sa
 
 from pydantic import BaseSettings
+from sqlalchemy.ext.asyncio.engine import AsyncEngine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.decl_api import DeclarativeMeta
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.session import Session
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
+from custom_logger import logger
 
 
 Base: DeclarativeMeta = declarative_base()
@@ -55,10 +59,33 @@ class DBSettings(BaseSettings):
 
   @property
   def dsn(self) -> str:
-    return f"postgresql://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
+    return f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
 
-db_settings = DBSettings()
-engine = sa.create_engine(db_settings.dsn, echo=False)
-Base.metadata.create_all(engine) # type: ignore
-_Session = sessionmaker(bind=engine)
-session: Session = _Session()
+class Sessions:
+  _initialized: bool
+  _engine: AsyncEngine
+  _DBSession: Optional[sessionmaker]
+
+  def __init__(self):
+    self._initialized = False
+    self._db_settings = DBSettings()
+    self._engine = create_async_engine(self._db_settings.dsn, echo=False)
+    self._DBSession = None
+
+    self._init_task = asyncio.create_task(self._initialize())
+  
+  async def _initialize(self) -> bool:
+    assert not self._initialized
+    async with self._engine.begin() as conn:
+      if not conn:
+        logger.critical(f"could not create engine")
+        return False
+      await conn.run_sync(Base.metadata.create_all)  # type: ignore
+    self._DBSession = sessionmaker(bind=self._engine, expire_on_commit=False, class_=AsyncSession)
+    self._initialized = True
+    return True
+
+  async def get_session(self) -> Optional[AsyncSession]:
+    if not self._init_task.done():
+      await self._init_task
+    return self._DBSession() if self._DBSession else None
