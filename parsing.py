@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from dataclasses import dataclass
 import math
 from typing import Callable, List, Match, Optional, Sequence, TypeVar, cast
 import functools
 import re
+from bs4 import BeautifulSoup
 
 from bs4.element import ResultSet, Tag
 
 from db import Post
 
 from custom_logger import logger
+
+import locale
 
 
 """
@@ -41,6 +45,10 @@ _T = TypeVar("_T")
 _InputType = TypeVar("_InputType")
 _ReturnType = TypeVar("_ReturnType")
 
+@dataclass
+class Counts:
+  count: int
+  pages: int
 
 def is_post_row(tag: Tag) -> bool:
   classes: Sequence[str] = tag.get('class') or []
@@ -190,6 +198,31 @@ class Parser:
       return None
 
     return int(cast(str, href).partition("/result/")[-1])
+
+  @graceful
+  @staticmethod
+  def parse_counts(soup: BeautifulSoup) -> Optional[Counts]:
+    """
+    <div class="col-auto align-self-center pe-3">
+      Showing <strong>497</strong> results over <strong>20</strong> pages
+    </div>
+    """
+    if not (text := soup.find(text=re.compile(r'\s*Showing'))):
+      return None
+
+    if not isinstance(div := text.parent, Tag):
+      return None
+
+    if not (match := re.match(r'\s*Showing\s*(.*)\s*results\s*over\s*(.*)\s*pages\s*', div.text)):
+      return None
+  
+    if not (count_str := match.group(1)) or not (pages_str := match.group(2)):
+      return None
+    
+    return Counts(
+      count=int(count_str.replace(",", "")),
+      pages=int(pages_str.replace(",", "")),
+    )
 
 def get_stats(tag: Tag) -> List[List[str]]:
   results: List[List[str]] = []

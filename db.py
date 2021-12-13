@@ -60,5 +60,5 @@ class DBSettings(BaseSettings):
 db_settings = DBSettings()
 engine = sa.create_engine(db_settings.dsn, echo=False)
 Base.metadata.create_all(engine) # type: ignore
-Session_ = sessionmaker(bind=engine)
-session: Session = Session_()
+_Session = sessionmaker(bind=engine)
+session: Session = _Session()

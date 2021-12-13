@@ -18,7 +18,7 @@ services:
     image: gradcafe:latest
 
   scrape:
-    command: [ 'bash', '-c', 'python scrape.py --seeds $SEEDS']
+    command: [ 'bash', '-c', 'python scrape.py --seeds "$SEEDS"']
     image: gradcafe:latest
     env_file: .env
     depends_on:

@@ -4,17 +4,20 @@ from __future__ import annotations
 import asyncio
 import itertools
 from argparse import Action, ArgumentParser, Namespace
+from dataclasses import dataclass
 from typing import Any, List, Optional, Sequence, Union
 from urllib.parse import urlencode
 
 import aiohttp
+from aiohttp.client import ClientSession, request
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from pydantic.env_settings import BaseSettings
+from sqlalchemy.orm import query
 
 from custom_logger import logger
 from db import Post, session
-from parsing import get_rows, table_row_to_post
+from parsing import Counts, Parser, get_rows, table_row_to_post
 from query import Query
 
 NUM_COLUMNS = 6
@@ -24,7 +27,8 @@ class Config(BaseSettings):
 
 def soup_to_posts(soup: BeautifulSoup) -> Optional[List[Post]]:
   table = soup.find(class_="submission-table")
-  assert isinstance(table, Tag)
+  if not isinstance(table, Tag):
+    return None
 
   if not (rows := get_rows(table)):
     return None
@@ -45,34 +49,89 @@ def soup_to_posts(soup: BeautifulSoup) -> Optional[List[Post]]:
 
   return posts
 
+@dataclass
+class ScrapeRequest:
+  config: Config
+  seed: str
+  http_session: ClientSession
+  query: Query
+  pagination_num: int
+
+async def get_soup(request: ScrapeRequest) -> BeautifulSoup:
+    data = urlencode(request.query.pagination_num(request.pagination_num).to_dict())
+    url = f"{request.config.api_url}?{data}"
+    async with request.http_session.get(url) as http_response:
+      html = await http_response.text()
+
+    soup = BeautifulSoup(html, 'lxml')
+    return soup
+
+async def get_counts(request: ScrapeRequest) -> Optional[Counts]:
+  try:
+    soup = await get_soup(request)
+  except Exception as e:
+    logger.error(f"Got exception while getting soup: {e}")
+    return None
+
+  return Parser.parse_counts(soup)
+
+async def scrape(request: ScrapeRequest):
+  try:
+    soup = await get_soup(request)
+  except Exception as e:
+    logger.error(f"Got exception while getting soup: {e}")
+    return
+
+  try:
+    posts = soup_to_posts(soup)
+  except Exception as e:
+    logger.error(f"Got error when converting soup to posts: {e}")
+    return
+  
+  # Try to batch insert.
+  new_posts: List[Post] = []
+  for post in posts or []:
+    try:
+      if not (post_row := session.query(Post).filter(Post.id == post.id).first()):
+        session.add(post)
+        new_posts.append(post)
+    except Exception as e:
+      logger.error(f"Got exception when adding/fetching row: {e}")
+
+  try:
+    session.commit()
+    logger.debug(f"Inserted {len(new_posts)} new posts into table, ({request.seed=}, {request.pagination_num=})")
+    return
+  except Exception as e:
+    logger.error(f"Got error while trying to commit: {e}.\n Falling back on individual commits.")
+    logger.info(f"Falling back on individual commits")
+    session.rollback()
+
+  # Fall back on committing individually.
+  for post in new_posts:
+    try:
+      session.add(post)
+      session.commit()
+    except Exception as e:
+      logger.error(f"Error committing individual post {post.id=}: {e}")
+
 
 async def populate(config: Config, seed: str) -> str:
   query = Query().text(seed).max_num_rows(250)
 
-  async with aiohttp.ClientSession() as http_session:
-    pagination_num = 0
-    for pagination_num in itertools.count(start=1):
-      data = urlencode(query.pagination_num(pagination_num).to_dict())
-      url = f"{config.api_url}?{data}"
-      async with http_session.get(url) as http_response:
-        html = await http_response.text()
+  async with ClientSession() as http_session:
+    request = ScrapeRequest(config, seed, http_session, query, 0)
+    if not (counts := await get_counts(request)):
+      return seed
 
-      soup = BeautifulSoup(html, 'lxml')
+    logger.info(f"{seed=}, {counts=}")
+    pages = [
+      scrape(ScrapeRequest(config, seed, http_session, query, pagination_num))
+      for pagination_num in range(1, counts.pages+1)
+    ]
 
-      if (posts := soup_to_posts(soup)) is None:
-        break
-
-      new_posts: List[Post] = []
-      for post in posts or []:
-        if not (post_row := session.query(Post).filter(Post.id == post.id).first()):
-          session.add(post)
-          new_posts.append(post)
-
-      logger.debug(f"Inserting {len(new_posts)} new posts into table, {url=}")
-      session.commit()
-
-      if not new_posts:
-        break
+    for page in asyncio.as_completed(pages):
+      await page
 
   return seed
 
@@ -99,7 +158,7 @@ class SplitArgs(Action):
     assert isinstance(values, list)
     assert len(values) == 1
     items: str = values[0]
-    setattr(namespace, self.dest, [item.strip() for item in items.split(",")])
+    setattr(namespace, self.dest, [stripped_item for item in items.split(",") if (stripped_item := item.strip())])
 
 def get_args() -> Namespace:
   parser = ArgumentParser("scrape gradcafe")
