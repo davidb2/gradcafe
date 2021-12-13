@@ -89,7 +89,7 @@ class Parser:
 
     decision_medium_and_date = (' '.join(tokens)).strip()
     return re.match(r'(.*)\s*via\s*(.*)\s*on\s*(.*)', decision_medium_and_date)
-    
+
   @graceful
   @staticmethod
   def parse_decision(match: Match[str]) -> Optional[str]:
@@ -122,7 +122,7 @@ class Parser:
   def parse_gpa(stats: List[List[str]]) -> Optional[float]:
     if not (text := stats[0][1].strip()):
       return None
-    
+
     if text == 'n/a':
       return None
 
@@ -141,7 +141,7 @@ class Parser:
   def parse_gre_verbal(match: Match[str]) -> Optional[float]:
     if math.isclose(verbal := float(match.group(1).strip()), 0):
       return None
-    
+
     return verbal
 
   @graceful
@@ -149,7 +149,7 @@ class Parser:
   def parse_gre_quant(match: Match[str]) -> Optional[float]:
     if math.isclose(quant := float(match.group(2).strip()), 0):
       return None
-    
+
     return quant
 
   @graceful
@@ -157,7 +157,7 @@ class Parser:
   def parse_gre_writing(match: Match[str]) -> Optional[float]:
     if math.isclose(writing := float(match.group(3).strip()), 0):
       return None
-    
+
     return writing
 
   @graceful
@@ -165,7 +165,7 @@ class Parser:
   def parse_gre_subject(stats: List[List[str]]) -> Optional[str]:
     if not (text := stats[2][1].strip()):
       return None
-    
+
     if text == 'n/a':
       return None
 
@@ -180,7 +180,7 @@ class Parser:
   @staticmethod
   def parse_date_of_post(td: Tag) -> Optional[str]:
     return td.text.strip() or None
-  
+
   @graceful
   @staticmethod
   def parse_comment(td: Tag) -> Optional[str]:
@@ -213,10 +213,10 @@ class Parser:
 
     if not (match := re.match(r'\s*Showing\s*(.*)\s*results\s*over\s*(.*)\s*pages\s*', div.text)):
       return None
-  
+
     if not (count_str := match.group(1)) or not (pages_str := match.group(2)):
       return None
-    
+
     return Counts(
       count=int(count_str.replace(",", "")),
       pages=int(pages_str.replace(",", "")),

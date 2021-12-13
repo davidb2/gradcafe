@@ -84,7 +84,7 @@ async def scrape(request: ScrapeRequest):
   except Exception as e:
     logger.error(f"Got error when converting soup to posts: {e}")
     return
-  
+
   # Try to batch insert.
   new_posts: List[Post] = []
   for post in posts or []:

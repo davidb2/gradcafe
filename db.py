@@ -46,7 +46,7 @@ class DBSettings(BaseSettings):
     env_prefix = 'db_'
     env_file = '.env'
     env_file_encoding = 'utf-8'
-  
+
   host: str
   name: str
   password: SecretStr
