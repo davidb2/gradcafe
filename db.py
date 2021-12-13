@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic.types import SecretStr
 
 import sqlalchemy as sa
+import datetime as dt
 
 from pydantic import BaseSettings
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
@@ -69,8 +70,14 @@ class Sessions:
   def __init__(self):
     self._initialized = False
     self._db_settings = DBSettings()
-    self._engine = create_async_engine(self._db_settings.dsn, echo=False)
     self._DBSession = None
+    self._engine = create_async_engine(
+      self._db_settings.dsn,
+      echo=False,
+      pool_size=5,
+      max_overflow=5,
+      pool_timeout=dt.timedelta(minutes=2).total_seconds(),
+    )
 
     self._init_task = asyncio.create_task(self._initialize())
   

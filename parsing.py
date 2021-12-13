@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-from dataclasses import dataclass
-import math
-from typing import Callable, List, Match, Optional, Sequence, TypeVar, cast
-import functools
-import re
-from bs4 import BeautifulSoup
-import datetime as dt
 
+import datetime as dt
+import functools
+import math
+import re
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import Callable, List, Match, Optional, Sequence, TypeVar, cast
+
+from bs4 import BeautifulSoup
 from bs4.element import ResultSet, Tag
 
-from db import Post
-
 from custom_logger import logger
-
+from db import Post
 
 """
 <td class="instcol">Carnegie Mellon University(CMU)</td>
@@ -122,14 +122,14 @@ class Parser:
 
   @graceful
   @staticmethod
-  def parse_gpa(stats: List[List[str]]) -> Optional[float]:
+  def parse_gpa(stats: List[List[str]]) -> Optional[Decimal]:
     if not (text := stats[0][1].strip()):
       return None
 
     if text == 'n/a':
       return None
 
-    return float(text)
+    return Decimal(str(text))
 
   @graceful
   @staticmethod
@@ -141,24 +141,24 @@ class Parser:
 
   @graceful
   @staticmethod
-  def parse_gre_verbal(match: Match[str]) -> Optional[float]:
-    if math.isclose(verbal := float(match.group(1).strip()), 0):
+  def parse_gre_verbal(match: Match[str]) -> Optional[Decimal]:
+    if math.isclose(verbal := Decimal(str(match.group(1).strip())), 0):
       return None
 
     return verbal
 
   @graceful
   @staticmethod
-  def parse_gre_quant(match: Match[str]) -> Optional[float]:
-    if math.isclose(quant := float(match.group(2).strip()), 0):
+  def parse_gre_quant(match: Match[str]) -> Optional[Decimal]:
+    if math.isclose(quant := Decimal(str(match.group(2).strip())), 0):
       return None
 
     return quant
 
   @graceful
   @staticmethod
-  def parse_gre_writing(match: Match[str]) -> Optional[float]:
-    if math.isclose(writing := float(match.group(3).strip()), 0):
+  def parse_gre_writing(match: Match[str]) -> Optional[Decimal]:
+    if math.isclose(writing := Decimal(str(match.group(3).strip())), 0):
       return None
 
     return writing
@@ -263,11 +263,11 @@ def table_row_to_post(tds: List[Tag]) -> Post:
     logger.debug(f"{medium=}")
     logger.debug(f"{date_of_decision=}")
 
-  gpa: Optional[float] = None
+  gpa: Optional[Decimal] = None
   gre_subject: Optional[str] = None
-  gre_verbal: Optional[float] = None
-  gre_quant: Optional[float] = None
-  gre_writing: Optional[float] = None
+  gre_verbal: Optional[Decimal] = None
+  gre_quant: Optional[Decimal] = None
+  gre_writing: Optional[Decimal] = None
   if stats := Parser.parse_stats(tds[2]):
     gpa = Parser.parse_gpa(stats)
     gre_subject = Parser.parse_gre_subject(stats)

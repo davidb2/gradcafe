@@ -62,10 +62,13 @@ async def get_soup(request: ScrapeRequest) -> BeautifulSoup:
     data = urlencode(request.query.pagination_num(request.pagination_num).to_dict())
     url = f"{request.config.api_url}?{data}"
     async with request.http_session.get(url) as http_response:
-      html = await http_response.text()
+      try:
+        html = await http_response.text(errors='replace')
+      except Exception as e:
+        logger.error(f"html parsing problem for {url=}")
+        raise e
 
-    soup = BeautifulSoup(html, 'lxml')
-    return soup
+      return BeautifulSoup(html, 'lxml')
 
 async def get_counts(request: ScrapeRequest) -> Optional[Counts]:
   try:
