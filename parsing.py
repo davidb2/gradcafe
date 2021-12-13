@@ -13,8 +13,6 @@ from db import Post
 
 from custom_logger import logger
 
-import locale
-
 
 """
 <td class="instcol">Carnegie Mellon University(CMU)</td>

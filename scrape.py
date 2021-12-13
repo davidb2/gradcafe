@@ -2,18 +2,15 @@
 from __future__ import annotations
 
 import asyncio
-import itertools
 from argparse import Action, ArgumentParser, Namespace
 from dataclasses import dataclass
 from typing import Any, List, Optional, Sequence, Union
 from urllib.parse import urlencode
 
-import aiohttp
-from aiohttp.client import ClientSession, request
+from aiohttp.client import ClientSession
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from pydantic.env_settings import BaseSettings
-from sqlalchemy.orm import query
 
 from custom_logger import logger
 from db import Post, session
